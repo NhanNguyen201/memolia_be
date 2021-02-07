@@ -9,7 +9,13 @@ const postSchema = new Schema({
     userImage: String,
     userBioName: String,
     tags: [String],
-    selectedFiles: [String],
+    selectedFiles: [
+        {
+            resource_type: String,
+            public_id: String,
+            url: String
+        }
+    ],
     isPrivate: {
         type: Boolean,
         default: false

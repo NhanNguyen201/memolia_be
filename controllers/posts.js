@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Post = require('../models/posts');
 const { postValidate } = require('../utils/validators');
 const { cloudinary } = require('../utils/cloundinary')
+
 const getPosts = async (req, res) => {
     try {
         const posts = await Post.find({isPrivate: false}).sort({'createdAt': -1});
@@ -22,6 +23,18 @@ const getPost = async (req, res) => {
     }
 }
 
+const sharePrivate = (req, res) => {
+
+}
+
+const recieveShare = (req, res) => {
+
+}
+
+const createSpecial = (req, res) => {
+
+}
+
 const createPost  = async (req, res) => {
     try {
         const { title, message, selectedFiles, tags, isPrivate } = req.body;
@@ -33,9 +46,13 @@ const createPost  = async (req, res) => {
         const newTags = tags.split(',').map(tag => tag.trim());     
         const createdAt = new Date().toISOString();
         let res_promises = baseImages.map(file => new Promise((resolve, reject) => {
-                cloudinary.uploader.upload(file, { upload_preset: 'dev_Nhan' }, function (error, result) {
+                cloudinary.uploader.upload(file, { upload_preset: 'dev_Nhan', resource_type: "auto"}, function (error, result) {
                     if(error) reject(error)
-                    else resolve(result.url)
+                    else resolve({
+                        resource_type: result.resource_type,
+                        public_id: result.public_id,
+                        url: result.url
+                    })
                 })
             })
         )
@@ -53,6 +70,7 @@ const createPost  = async (req, res) => {
                     isPrivate,
                     createdAt
                 })
+                // console.log(result)
                 await newPost.save()
                 return res.json(newPost);
             })
