@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 const Post = require('../models/posts');
+const User = require('../models/users');
+const jwt = require('jsonwebtoken');
 const { postValidate } = require('../utils/validators');
 const { cloudinary } = require('../utils/cloundinary')
 
@@ -17,8 +19,30 @@ const getPost = async (req, res) => {
     if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({error: "No post found"});
     try {
         const post = await Post.findById(id);
-        return res.json(post);
+        if(post) {
+            if(post.isPrivate){
+                if(!req.headers.authorization || !req.headers.authorization.startsWith('Bearer')){
+                    return res.status(401).json({error: "Unorthorized"})
+                } else {
+                    const token = req.headers.authorization.split('Bearer ')[1];
+                    const decodedUser = jwt.decode(token);
+                    const user = await User.findOne({userName: decodedUser.email});
+                    if(user && post.privateAccess.find(allow => allow.userName === user.userName)){
+                        return res.json(post)
+                    } else if(user && post.userName === user.userName){
+                        return res.json(post)
+                    } else {
+                        return res.status(401).json({error: "Unorthorized"})
+                    }
+                }
+            } else {
+                return res.json(post)
+            }
+        } else {
+            return res.status(404).json({error: "No post found"})
+        }
     } catch(err){
+        console.log(err)
         return res.status(500).json({error: "Something is wrong"})
     }
 }
