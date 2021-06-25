@@ -4,7 +4,6 @@ const User = require('../models/users');
 
 module.exports.allSearch = async (req, res) => {
     const { q: searchQuery, searchTerm, page } = req.query;
-    console.log("queries", req.query);
     let result;
     const LIMIT = 6;
     const startIndex = (Number(page || 1) - 1) * LIMIT;
