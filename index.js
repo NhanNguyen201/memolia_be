@@ -8,6 +8,7 @@ const cors = require('cors');
 
 const postRoutes = require('./routes/posts');
 const userRoutes = require('./routes/users');
+const searchRoute = require('./routes/search');
 const selfRoute = require('./routes/selfUser');
 const app = express();
 
@@ -33,6 +34,7 @@ app.use(bodyParser.urlencoded({limit: "30mb", extended: true}));
 app.get('/', (req, res) => res.send("Hello"));
 
 app.use('/posts', postRoutes);
+app.use('/search', searchRoute);
 app.use('/users', userRoutes);
 app.use('/user', selfRoute);
 

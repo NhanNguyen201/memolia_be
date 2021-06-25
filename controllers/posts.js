@@ -6,8 +6,25 @@ const { postValidate } = require('../utils/validators');
 const { cloudinary } = require('../utils/cloundinary')
 
 const getPosts = async (req, res) => {
+    const { page } = req.query;
     try {
-        const posts = await Post.find({isPrivate: false}).sort({'createdAt': -1});
+        const LIMIT = 6;
+        const startIndex = (Number(page) - 1) * LIMIT;
+        const total = await Post.countDocuments()
+        const posts = await Post.find({isPrivate: false}).sort({'createdAt': -1}).limit(LIMIT).skip(startIndex);
+        return res.json({
+            posts,
+            currentPage: Number(page),
+            numberOfPages: Math.ceil(total / LIMIT)
+        })
+    } catch (error) {
+        return res.status(500).json({error: "Something is wrong"})
+    }
+}
+
+const getAllPosts = async (req, res) => {
+    try {
+        const posts = await Post.find().sort({'createdAt': -1});
         return res.json(posts)
     } catch (error) {
         return res.status(500).json({error: "Something is wrong"})
@@ -64,7 +81,6 @@ const createPost  = async (req, res) => {
         const { title, message, selectedFiles, tags, isPrivate } = req.body;
         const { valid, errors } = postValidate(req.body);
         if(!valid) return res.status(400).json(errors)
-
         const { userName, userBioName, userImage, userId } = req.user;
         const baseImages = selectedFiles.map(file => file.base64);
         const newTags = tags.split(',').map(tag => tag.trim());     
@@ -107,7 +123,19 @@ const createPost  = async (req, res) => {
         return res.status(500).json({error: "Something is wrong"})
     }
 }
-
+const deleteDefaultPost = async (req, res) => {
+    const { id } = req.params;
+    if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({error: "No post found"});
+    try {
+        const post = await Post.findById(id);
+        if(post) {
+            await Post.findByIdAndDelete(id);
+            return res.json({message: "Post deleted successfully"})
+        }
+    } catch (error) {
+        return res.status(500).json({error: "Something is wrong"})
+    }
+}
 const updatePost = async (req, res) => {
     const { id: _id } = req.params;
     const post = req.body;
@@ -115,7 +143,21 @@ const updatePost = async (req, res) => {
     const updatePost = await Post.findByIdAndUpdate(_id, {...post, _id}, {new: true});
     return res.json(updatePost);
 }
-
+const changePrivate = async(req, res) => {
+    const { id } = req.params;
+    if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({error: "No post found"});
+    try {
+        const post = await Post.findById(id);
+        if(req.user.userId === post.userId) {
+            const updatePost = await Post.findByIdAndUpdate(id, { isPrivate: !post.isPrivate }, {new: true})
+            return res.json(updatePost)
+        } else {
+            return res.status(400).json({error: "Not allowed"})
+        }        
+    } catch (error) {
+        return res.status(500).json({error: "Something is wrong"})
+    }
+}
 const deletePost = async (req, res) => {
     const { id } = req.params;
     if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({error: "No post found"});
@@ -236,4 +278,17 @@ const replyComment = async (req, res) => { // reply a comment
     }
 } 
 
-module.exports = { getPosts, getPost, createPost, updatePost, deletePost, likePost, commentPost, likeComment, replyComment }
+module.exports = { 
+    getPosts, 
+    getAllPosts,
+    getPost, 
+    createPost, 
+    updatePost, 
+    changePrivate,
+    deletePost, 
+    deleteDefaultPost,
+    likePost, 
+    commentPost, 
+    likeComment, 
+    replyComment 
+}
