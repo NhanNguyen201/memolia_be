@@ -4,7 +4,6 @@ const router = express.Router();
 const { 
     getPosts, 
     getAllPosts,
-    // getPostsBySearch,
     getPost, 
     createPost, 
     updatePost, 
@@ -23,7 +22,6 @@ const { chkAuth } = require('../midlewares/chkAuth');
 
 router.get('/', getPosts);
 router.get('/all', getAllPosts);
-// router.get('/search', getPostsBySearch);
 router.get('/:id', getPost);
 router.post('/', chkAuth ,createPost)
 router.patch('/:id', chkAuth, updatePost);

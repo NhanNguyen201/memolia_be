@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const { postValidate } = require('../utils/validators');
 const { cloudinary } = require('../utils/cloundinary')
 
-const getPosts = async (req, res) => {
+module.exports.getPosts = async (req, res) => {
     const { page } = req.query;
     try {
         const LIMIT = 6;
@@ -22,7 +22,7 @@ const getPosts = async (req, res) => {
     }
 }
 
-const getAllPosts = async (req, res) => {
+module.exports.getAllPosts = async (req, res) => {
     try {
         const posts = await Post.find().sort({'createdAt': -1});
         return res.json(posts)
@@ -31,7 +31,7 @@ const getAllPosts = async (req, res) => {
     }
 }
 
-const getPost = async (req, res) => {
+module.exports.getPost = async (req, res) => {
     const { id } = req.params;
     if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({error: "No post found"});
     try {
@@ -75,17 +75,42 @@ const recieveShare = (req, res) => {
 const createSpecial = (req, res) => {
 
 }
+// const getSignature = (req, res) => {
+//     try {
+//         let timestamp = Math.round((new Date).getTime()/1000);
+//         const signature = cloudinary.utils.api_sign_request({
+//             timestamp,
+//             api_key: process.env.CLOUDINARY_API_KEY,
+//             upload_preset: "dev_Nhan"
+//         }, process.env.CLOUDINARY_API_SECRET)
+//         return res.json({
+//             timestamp,
+//             signature
+//         })
+//     } catch (error) {
+//         console.log(error);
+//         return res.status(500).json({error: "Something is wrong"})
+//     }
+// }
+// const createPostWithSignature = (req, res) => {
+//     try {
+        
+//     } catch (error) {
+//         console.log(error);
+//         return res.status(500).json({error: "Something is wrong"})
+//     }
+// }
 
-const createPost  = async (req, res) => {
+module.exports.createPost  = async (req, res) => {
     try {
         const { title, message, selectedFiles, tags, isPrivate } = req.body;
         const { valid, errors } = postValidate(req.body);
         if(!valid) return res.status(400).json(errors)
         const { userName, userBioName, userImage, userId } = req.user;
         const baseImages = selectedFiles.map(file => file.base64);
-        const newTags = tags.split(',').map(tag => tag.trim());     
+        let newTags = tags.split(/[#.,\/ -]/).map(tag => tag.trim()).filter(tag => tag).length > 0 ? tags.split(/[#.,\/ -]/).map(tag => tag.trim()).filter(tag => tag) : ["noTag"];  
         const createdAt = new Date().toISOString();
-        let res_promises = baseImages.map(file => new Promise((resolve, reject) => {
+        let upload_promises = baseImages.map(file => new Promise((resolve, reject) => {
                 cloudinary.uploader.upload(file, { upload_preset: 'dev_Nhan', resource_type: "auto"}, function (error, result) {
                     if(error) reject(error)
                     else resolve({
@@ -96,9 +121,9 @@ const createPost  = async (req, res) => {
                 })
             })
         )
-        Promise.all(res_promises)
+        Promise.all(upload_promises)
             .then(async (result) =>  {
-                var newPost = new Post({ 
+                let newPost = new Post({ 
                     title, 
                     message, 
                     userName,
@@ -123,7 +148,7 @@ const createPost  = async (req, res) => {
         return res.status(500).json({error: "Something is wrong"})
     }
 }
-const deleteDefaultPost = async (req, res) => {
+module.exports.deleteDefaultPost = async (req, res) => {
     const { id } = req.params;
     if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({error: "No post found"});
     try {
@@ -136,14 +161,15 @@ const deleteDefaultPost = async (req, res) => {
         return res.status(500).json({error: "Something is wrong"})
     }
 }
-const updatePost = async (req, res) => {
+module.exports.updatePost = async (req, res) => {
     const { id: _id } = req.params;
     const post = req.body;
     if(!mongoose.Types.ObjectId.isValid(_id)) return res.status(404).json({error: "No post found"});
     const updatePost = await Post.findByIdAndUpdate(_id, {...post, _id}, {new: true});
     return res.json(updatePost);
 }
-const changePrivate = async(req, res) => {
+
+module.exports.changePrivate = async(req, res) => {
     const { id } = req.params;
     if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({error: "No post found"});
     try {
@@ -158,7 +184,8 @@ const changePrivate = async(req, res) => {
         return res.status(500).json({error: "Something is wrong"})
     }
 }
-const deletePost = async (req, res) => {
+
+module.exports.deletePost = async (req, res) => {
     const { id } = req.params;
     if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({error: "No post found"});
     try {
@@ -174,7 +201,7 @@ const deletePost = async (req, res) => {
     }
 }
 
-const likePost = async (req,res) => {
+module.exports.likePost = async(req,res) => {
     const { id } = req.params;
     if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({error: "No post found"});
     try {
@@ -199,7 +226,7 @@ const likePost = async (req,res) => {
     }
 }
 
-const commentPost = async(req, res) => {
+module.exports.commentPost = async(req, res) => {
     const { id } = req.params;
     const { body } = req.body;
     const { userId, userName, userBioName, userImage } = req.user;
@@ -216,7 +243,7 @@ const commentPost = async(req, res) => {
     }
 }
 
-const likeComment = async (req, res) => { // like an comment
+module.exports.likeComment = async (req, res) => { // like an comment
     const { id: postId, commentId } = req.params;
     const { userId, userName, userBioName, userImage } = req.user;
     if(!mongoose.Types.ObjectId.isValid(postId)) return res.status(404).json({error: "No post found"});
@@ -247,7 +274,7 @@ const likeComment = async (req, res) => { // like an comment
     }
 }
 
-const replyComment = async (req, res) => { // reply a comment
+module.exports.replyComment = async (req, res) => { // reply a comment
     const { id: postId, commentId } = req.params;
     const { body } = req.body;
     const { userId, userName, userBioName, userImage } = req.user;
@@ -278,17 +305,3 @@ const replyComment = async (req, res) => { // reply a comment
     }
 } 
 
-module.exports = { 
-    getPosts, 
-    getAllPosts,
-    getPost, 
-    createPost, 
-    updatePost, 
-    changePrivate,
-    deletePost, 
-    deleteDefaultPost,
-    likePost, 
-    commentPost, 
-    likeComment, 
-    replyComment 
-}
