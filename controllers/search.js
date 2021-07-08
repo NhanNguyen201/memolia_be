@@ -7,10 +7,10 @@ module.exports.allSearch = async (req, res) => {
     let result;
     const LIMIT = 6;
     const startIndex = (Number(page || 1) - 1) * LIMIT;
-    const titles = new RegExp(searchTerm, 'i');
-    const users = new RegExp(searchTerm, 'i');
-    const splitTags = searchTerm.replace(/#/g, " ").split(" ").filter(c => c.length > 0).map(c => new RegExp(c, 'i'));
     try {
+        const titles = new RegExp(searchTerm, 'i');
+        const users = new RegExp(searchTerm, 'i');
+        const splitTags = searchTerm.replace(/#/g, " ").split(" ").filter(c => c.length > 0).map(c => new RegExp(c, 'i'));
         if(searchQuery === "top") {
             const totalPosts = await Post.find(
                 {$or: [
