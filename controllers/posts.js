@@ -3,6 +3,8 @@ const Post = require('../models/posts');
 const User = require('../models/users');
 const jwt = require('jsonwebtoken');
 const { postValidate } = require('../utils/validators');
+const got = require('got');
+// const fetch = require('node-fetch');
 const { cloudinary } = require('../utils/cloundinary')
 
 module.exports.getPosts = async (req, res) => {
@@ -10,7 +12,7 @@ module.exports.getPosts = async (req, res) => {
     try {
         const LIMIT = 6;
         const startIndex = (Number(page) - 1) * LIMIT;
-        const total = await Post.countDocuments()
+        const total = await Post.find({isPrivate: false}).countDocuments()
         const posts = await Post.find({isPrivate: false}).sort({'createdAt': -1}).limit(LIMIT).skip(startIndex);
         return res.json({
             posts,
@@ -108,7 +110,8 @@ module.exports.createPost  = async (req, res) => {
         if(!valid) return res.status(400).json(errors)
         const { userName, userBioName, userImage, userId } = req.user;
         const baseImages = selectedFiles.map(file => file.base64);
-        let newTags = tags.split(/[#.,\/ -]/).map(tag => tag.trim()).filter(tag => tag).length > 0 ? tags.split(/[#.,\/ -]/).map(tag => tag.trim()).filter(tag => tag) : ["noTag"];  
+        // let newTags = tags.split(/[#.,\/ -]/).map(tag => tag.trim()).filter(tag => tag).length > 0 ? tags.split(/[#.,\/ -]/).map(tag => tag.trim()).filter(tag => tag) : ["noTag"];  
+        let newTags = tags.split(/[#.,\/ -]/).map(tag => tag.trim()).filter(tag => tag);  
         const createdAt = new Date().toISOString();
         let upload_promises = baseImages.map(file => new Promise((resolve, reject) => {
                 cloudinary.uploader.upload(file, { upload_preset: 'dev_Nhan', resource_type: "auto"}, function (error, result) {
@@ -123,6 +126,16 @@ module.exports.createPost  = async (req, res) => {
         )
         Promise.all(upload_promises)
             .then(async (result) =>  {
+                if(newTags.length === 0) {
+                    if( result.find(file => file.resource_type === 'image')) {
+                        let imageToTag = result.find(file => file.resource_type === 'image');
+                        const imaggaRes = await got(`https://api.imagga.com/v2/tags?image_url=${encodeURIComponent(imageToTag.url)}`, {username: process.env.IMAGGA_API_KEY, password: process.env.IMAGGA_API_SECRET});
+                        const tagsResult = JSON.parse(imaggaRes.body).result.tags;
+                        newTags = tagsResult.slice(0, 5).map(tag => tag.tag.en)
+                    } else {
+                        newTags = ["noTag"]
+                    }
+                }
                 let newPost = new Post({ 
                     title, 
                     message, 
