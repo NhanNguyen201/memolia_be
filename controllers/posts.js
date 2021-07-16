@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 const Post = require('../models/posts');
 const User = require('../models/users');
 const jwt = require('jsonwebtoken');
-const { postValidate } = require('../utils/validators');
 const got = require('got');
-// const fetch = require('node-fetch');
+
+const { postValidate } = require('../utils/validators');
 const { cloudinary } = require('../utils/cloundinary')
 
 module.exports.getPosts = async (req, res) => {
@@ -74,9 +74,6 @@ const recieveShare = (req, res) => {
 
 }
 
-const createSpecial = (req, res) => {
-
-}
 // const getSignature = (req, res) => {
 //     try {
 //         let timestamp = Math.round((new Date).getTime()/1000);
@@ -110,7 +107,6 @@ module.exports.createPost  = async (req, res) => {
         if(!valid) return res.status(400).json(errors)
         const { userName, userBioName, userImage, userId } = req.user;
         const baseImages = selectedFiles.map(file => file.base64);
-        // let newTags = tags.split(/[#.,\/ -]/).map(tag => tag.trim()).filter(tag => tag).length > 0 ? tags.split(/[#.,\/ -]/).map(tag => tag.trim()).filter(tag => tag) : ["noTag"];  
         let newTags = tags.split(/[#.,\/ -]/).map(tag => tag.trim()).filter(tag => tag);  
         const createdAt = new Date().toISOString();
         let upload_promises = baseImages.map(file => new Promise((resolve, reject) => {
@@ -204,12 +200,26 @@ module.exports.deletePost = async (req, res) => {
     try {
         const post = await Post.findById(id);
         if(req.user.userId === post.userId) {
-            await Post.findByIdAndDelete(id);
-            return res.json({message: "Post deleted successfully"})
+            Promise.all(post.selectedFiles.map(file => new Promise((resolve, reject) => {
+                    cloudinary.uploader.destroy(file.public_id, (error, result) => {
+                        if(error) { 
+                            reject(error) 
+                        } else resolve(result)
+                    })
+                }))
+            )
+            .then(async () => {
+                await Post.findByIdAndDelete(id);
+                return res.json({message: "Deleted successfully"})
+            })
+            .catch(error => {
+                throw error
+            })
         } else {
             return res.status(400).json({error: "Not allowed"})
         }        
     } catch (error) {
+        console.log(error)
         return res.status(500).json({error: "Something is wrong"})
     }
 }
@@ -262,11 +272,11 @@ module.exports.likeComment = async (req, res) => { // like an comment
     if(!mongoose.Types.ObjectId.isValid(postId)) return res.status(404).json({error: "No post found"});
     try {
         const post = await Post.findById(postId);
-        var { comments } = post;
-        const targetComment = comments.findIndex(comment => comment._id === commentId);
+        let { comments } = post;
+        const targetComment = comments.findIndex(comment => comment._id == commentId);
         if(targetComment > -1) {
             if(comments[targetComment].likes.find(like => like.userId === userId)){
-                comments[targetComment].likes = comments[targetComment].likes.filter(like.userId !== userId)
+                comments[targetComment].likes = comments[targetComment].likes.filter(like => like.userId !== userId)
             } else {
                 comments[targetComment].likes.push({
                     userId,
@@ -274,8 +284,8 @@ module.exports.likeComment = async (req, res) => { // like an comment
                     userName,
                     userImage
                 })
-                comments[targetComment].likeCount = comments[targetComment].likes.length;
             }
+            comments[targetComment].likeCount = comments[targetComment].likes.length;
             const updatePost = await Post.findByIdAndUpdate(postId, {comments}, {new: true})
             return res.json(updatePost)
         } else {
@@ -296,7 +306,7 @@ module.exports.replyComment = async (req, res) => { // reply a comment
         const post = await Post.findById(postId);
         var { comments } = post;
         const createdAt = new Date().toISOString();
-        const targetComment = comments.findIndex(comment => comment._id === commentId);
+        const targetComment = comments.findIndex(comment => comment._id == commentId);
         if(targetComment > -1) {
             comments[targetComment].replies.unshift({
                 userId,

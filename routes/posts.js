@@ -28,7 +28,7 @@ router.patch('/:id', chkAuth, updatePost);
 router.patch('/:id/private', chkAuth, changePrivate);
 router.patch('/:id/like', chkAuth, likePost);
 router.patch('/:id/comment', chkAuth, commentPost);
-router.delete('/:id/user', chkAuth, deletePost);
+router.delete('/:id', chkAuth, deletePost);
 router.delete('/:id/admin', deleteDefaultPost);
 
 router.patch('/:id/comments/:commentId/like', chkAuth, likeComment)
