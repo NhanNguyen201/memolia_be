@@ -66,40 +66,6 @@ module.exports.getPost = async (req, res) => {
     }
 }
 
-const sharePrivate = (req, res) => {
-
-}
-
-const recieveShare = (req, res) => {
-
-}
-
-// const getSignature = (req, res) => {
-//     try {
-//         let timestamp = Math.round((new Date).getTime()/1000);
-//         const signature = cloudinary.utils.api_sign_request({
-//             timestamp,
-//             api_key: process.env.CLOUDINARY_API_KEY,
-//             upload_preset: "dev_Nhan"
-//         }, process.env.CLOUDINARY_API_SECRET)
-//         return res.json({
-//             timestamp,
-//             signature
-//         })
-//     } catch (error) {
-//         console.log(error);
-//         return res.status(500).json({error: "Something is wrong"})
-//     }
-// }
-// const createPostWithSignature = (req, res) => {
-//     try {
-        
-//     } catch (error) {
-//         console.log(error);
-//         return res.status(500).json({error: "Something is wrong"})
-//     }
-// }
-
 module.exports.createPost  = async (req, res) => {
     try {
         const { title, message, selectedFiles, tags, isPrivate } = req.body;
@@ -107,7 +73,7 @@ module.exports.createPost  = async (req, res) => {
         if(!valid) return res.status(400).json(errors)
         const { userName, userBioName, userImage, userId } = req.user;
         const baseImages = selectedFiles.map(file => file.base64);
-        let newTags = tags.split(/[#.,\/ -]/).map(tag => tag.trim()).filter(tag => tag);  
+        let newTags = tags.map(tag => tag.trim().replace(/[#.,\/ -]/, "")).filter(tag => tag);  
         const createdAt = new Date().toISOString();
         let upload_promises = baseImages.map(file => new Promise((resolve, reject) => {
                 cloudinary.uploader.upload(file, { upload_preset: 'dev_Nhan', resource_type: "auto"}, function (error, result) {
@@ -178,6 +144,24 @@ module.exports.updatePost = async (req, res) => {
     return res.json(updatePost);
 }
 
+module.exports.editPost = async(req, res) => {
+    const { id } = req.params;
+    const { title, message, selectedFiles, newFiles, tags } = req.body;    
+    if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({error: "No post found"});
+    try {
+        const post = await Post.findById(id);
+        if(req.user.userId === post.userId) {
+            // const updatePost = await Post.findByIdAndUpdate(id, { isPrivate: !post.isPrivate }, {new: true})
+
+            return res.json(updatePost)
+        } else {
+            return res.status(400).json({error: "Not allowed"})
+        }        
+    } catch (error) {
+        return res.status(500).json({error: "Something is wrong"})
+    }
+}
+
 module.exports.changePrivate = async(req, res) => {
     const { id } = req.params;
     if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({error: "No post found"});
@@ -226,22 +210,36 @@ module.exports.deletePost = async (req, res) => {
 
 module.exports.likePost = async(req,res) => {
     const { id } = req.params;
+    const { emoji } = req.body;
+    if(!['like', 'love', 'haha', 'wow', 'sad', 'angry'].includes(emoji)) return res.status(400).json({error: "Invalid emoji"});
     if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({error: "No post found"});
     try {
         const post = await Post.findById(id);
-        var { likes } = post;
-        const isLike = likes.find(like => like.userId === req.user.userId);
+        let { reactions } = post;
+        const isLike = reactions.find(like => like.userId === req.user.userId);
         if(isLike){
-            likes = likes.filter(like => like.userId !== req.user.userId)
+            if(isLike.emoji === emoji){
+                reactions = reactions.filter(like => like.userId !== req.user.userId)
+            } else {
+                reactions = reactions.filter(like => like.userId !== req.user.userId)
+                reactions.push({
+                    emoji,
+                    userId: req.user.userId,
+                    userName: req.user.userName,
+                    userBioName: req.user.userBioName,
+                    userImage: req.user.userImage,
+                })
+            }
         } else {
-            likes.push({
+            reactions.push({
+                emoji,
                 userId: req.user.userId,
                 userName: req.user.userName,
                 userBioName: req.user.userBioName,
                 userImage: req.user.userImage,
             })
         }
-        const updatePost = await Post.findByIdAndUpdate(id, { likeCount: likes.length, likes }, {new: true});
+        const updatePost = await Post.findByIdAndUpdate(id, { reactions }, {new: true});
         return res.json(updatePost);    
     } catch (error) {
         console.log(error);
@@ -268,24 +266,38 @@ module.exports.commentPost = async(req, res) => {
 
 module.exports.likeComment = async (req, res) => { // like an comment
     const { id: postId, commentId } = req.params;
+    const { emoji } = req.body;
     const { userId, userName, userBioName, userImage } = req.user;
+    if(!['like', 'love', 'haha', 'wow', 'sad', 'angry'].includes(emoji)) return res.status(400).json({error: "Invalid emoji"});
     if(!mongoose.Types.ObjectId.isValid(postId)) return res.status(404).json({error: "No post found"});
     try {
         const post = await Post.findById(postId);
         let { comments } = post;
         const targetComment = comments.findIndex(comment => comment._id == commentId);
         if(targetComment > -1) {
-            if(comments[targetComment].likes.find(like => like.userId === userId)){
-                comments[targetComment].likes = comments[targetComment].likes.filter(like => like.userId !== userId)
+            const isLiked = comments[targetComment].reactions.find(like => like.userId === userId)
+            if(isLiked) {
+                if(isLiked.emoji === emoji) {
+                    comments[targetComment].reactions = comments[targetComment].reactions.filter(like => like.userId !== userId)
+                } else {
+                    comments[targetComment].reactions = comments[targetComment].reactions.filter(like => like.userId !== userId)
+                    comments[targetComment].reactions.push({
+                        emoji,
+                        userId,
+                        userName,
+                        userBioName,
+                        userImage
+                    })
+                }
             } else {
-                comments[targetComment].likes.push({
+                comments[targetComment].reactions.push({
+                    emoji,
                     userId,
-                    userBioName,
                     userName,
+                    userBioName,
                     userImage
                 })
             }
-            comments[targetComment].likeCount = comments[targetComment].likes.length;
             const updatePost = await Post.findByIdAndUpdate(postId, {comments}, {new: true})
             return res.json(updatePost)
         } else {

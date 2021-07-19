@@ -26,17 +26,14 @@ const postSchema = new Schema({
             userName: String
         }
     ],
-    likeCount: {
-        type: Number,
-        default: 0
-    },
-    likes: [
+    reactions: [
         {
+            emoji: String,
             userId: String,
             userName: String,
             userBioName: String,
             userImage: String,
-        }        
+        }
     ],
     commentCount: {
         type: Number,
@@ -50,16 +47,13 @@ const postSchema = new Schema({
             userImage: String,
             body: String,
             createdAt: String,
-            likeCount: {
-                type: Number,
-                default: 0
-            },
             replyCount: {
                 type: Number,
                 default: 0
             },
-            likes: [
+            reactions: [
                 {
+                    emoji: String,
                     userId: String,
                     userName: String,
                     userBioName: String,
