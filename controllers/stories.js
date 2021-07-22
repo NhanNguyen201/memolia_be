@@ -53,7 +53,6 @@ module.exports.addToStory = async (req, res) => {
     const { storyImage, duration } = req.body;
     const { userId } = req.user;
     const { storyId } = req.params;
-    console.log(storyId)
     if(!mongoose.Types.ObjectId.isValid(storyId)) return res.status(404).json({error: "No story found"});
     try {
         const story = await Story.findById(storyId);
