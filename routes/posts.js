@@ -7,6 +7,7 @@ const {
     getPost, 
     createPost, 
     updatePost, 
+    editPost,
     changePrivate,
     deletePost, 
     deleteDefaultPost, 
@@ -25,6 +26,7 @@ router.get('/all', getAllPosts);
 router.get('/:id', getPost);
 router.post('/', chkAuth ,createPost)
 router.patch('/:id', chkAuth, updatePost);
+router.patch('/:id/edit', chkAuth, editPost);
 router.patch('/:id/private', chkAuth, changePrivate);
 router.patch('/:id/like', chkAuth, likePost);
 router.patch('/:id/comment', chkAuth, commentPost);

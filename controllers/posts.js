@@ -38,28 +38,25 @@ module.exports.getPost = async (req, res) => {
     if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({error: "No post found"});
     try {
         const post = await Post.findById(id);
-        if(post) {
-            if(post.isPrivate){
-                if(!req.headers.authorization || !req.headers.authorization.startsWith('Bearer')){
-                    return res.status(401).json({error: "Unorthorized"})
-                } else {
-                    const token = req.headers.authorization.split('Bearer ')[1];
-                    const decodedUser = jwt.decode(token);
-                    const user = await User.findOne({userName: decodedUser.email});
-                    if(user && post.privateAccess.find(allow => allow.userName === user.userName)){
-                        return res.json(post)
-                    } else if(user && post.userName === user.userName){
-                        return res.json(post)
-                    } else {
-                        return res.status(401).json({error: "Unorthorized"})
-                    }
-                }
+        if(post.isPrivate){
+            if(!req.headers.authorization || !req.headers.authorization.startsWith('Bearer')){
+                return res.status(401).json({error: "Unorthorized"})
             } else {
-                return res.json(post)
+                const token = req.headers.authorization.split('Bearer ')[1];
+                const decodedUser = jwt.decode(token);
+                const user = await User.findOne({userName: decodedUser.email});
+                if(user && post.privateAccess.find(allow => allow.userName === user.userName)){
+                    return res.json(post)
+                } else if(user && post.userName === user.userName){
+                    return res.json(post)
+                } else {
+                    return res.status(401).json({error: "Unorthorized"})
+                }
             }
         } else {
-            return res.status(404).json({error: "No post found"})
+            return res.json(post)
         }
+       
     } catch(err){
         console.log(err)
         return res.status(500).json({error: "Something is wrong"})
@@ -146,14 +143,55 @@ module.exports.updatePost = async (req, res) => {
 
 module.exports.editPost = async(req, res) => {
     const { id } = req.params;
-    const { title, message, selectedFiles, newFiles, tags } = req.body;    
+    let { title, message, selectedFiles, newFiles, tags } = req.body; 
+
     if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({error: "No post found"});
     try {
         const post = await Post.findById(id);
         if(req.user.userId === post.userId) {
-            // const updatePost = await Post.findByIdAndUpdate(id, { isPrivate: !post.isPrivate }, {new: true})
-
-            return res.json(updatePost)
+            const imageToRemove = post.selectedFiles.filter(file => !selectedFiles.find(newFile => newFile.public_id === file.public_id))
+            if(imageToRemove.length > 0) {
+                const removePromises = imageToRemove.map(file => new Promise((resolve, reject) => {
+                    cloudinary.uploader.destroy(file.public_id, (error, result) => {
+                        if(error) reject(error)
+                    })
+                }))
+                Promise.all(removePromises)
+                .catch(error => {
+                    throw error
+                })
+            }
+            if(newFiles.length > 0){ 
+                const uploadPromise = newFiles.map(file => new Promise((resolve, reject) => {
+                    cloudinary.uploader.upload(file.base64, { upload_preset: 'dev_Nhan', resource_type: "auto"}, (error, result) => {
+                        if(error) reject(error)
+                        else resolve({
+                            resource_type: result.resource_type,
+                            public_id: result.public_id,
+                            url: result.url
+                        })
+                    })
+                }))
+                Promise.all(uploadPromise)
+                    .then(async(result) => {
+                        let newTags;
+                        selectedFiles = [...selectedFiles, ...result]
+                        if(tags.length === 0 && result.find(file => file.resource_type === 'image')){
+                            let imageToTag = result.find(file => file.resource_type === 'image');
+                            const imaggaRes = await got(`https://api.imagga.com/v2/tags?image_url=${imageToTag.url}`, {username: process.env.IMAGGA_API_KEY, password: process.env.IMAGGA_API_SECRET});
+                            const tagsResult = JSON.parse(imaggaRes.body).result.tags;
+                            newTags = tagsResult.slice(0, 5).map(tag => tag.tag.en)
+                        }
+                        const updatePost = await Post.findByIdAndUpdate(id, { title: title, message: message || post.message, selectedFiles: selectedFiles, tags: tags || newTags}, {new: true});
+                        return res.json(updatePost)
+                    })
+                    .catch(error => {
+                        throw error;
+                    })
+            } else {
+                const updatePost = await Post.findByIdAndUpdate(id, { title: title, message: message || post.message, selectedFiles: selectedFiles, tags: tags || newTags}, {new: true});
+                return res.json(updatePost)
+            }
         } else {
             return res.status(400).json({error: "Not allowed"})
         }        

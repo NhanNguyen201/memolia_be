@@ -28,6 +28,17 @@ const storyChema = new Schema({
             type: String,
             default: new Date()
         },
+        comments: [{
+            body: String,
+            userName: String,
+            userId: String,
+            userImage: String,
+            userBioName: String,
+            createdAt: {
+                type: String,
+                default: new Date()
+            }
+        }],
         seen: [{
             userId: String
         }]
