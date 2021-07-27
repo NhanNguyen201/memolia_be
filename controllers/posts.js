@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Post = require('../models/posts');
 const User = require('../models/users');
+const Notification = require('../models/notifications');
 const jwt = require('jsonwebtoken');
 const got = require('got');
 
@@ -87,10 +88,15 @@ module.exports.createPost  = async (req, res) => {
             .then(async (result) =>  {
                 if(newTags.length === 0) {
                     if( result.find(file => file.resource_type === 'image')) {
-                        let imageToTag = result.find(file => file.resource_type === 'image');
-                        const imaggaRes = await got(`https://api.imagga.com/v2/tags?image_url=${encodeURIComponent(imageToTag.url)}`, {username: process.env.IMAGGA_API_KEY, password: process.env.IMAGGA_API_SECRET});
-                        const tagsResult = JSON.parse(imaggaRes.body).result.tags;
-                        newTags = tagsResult.slice(0, 5).map(tag => tag.tag.en)
+                        try {
+                            let imageToTag = result.find(file => file.resource_type === 'image');
+                            const imaggaRes = await got(`https://api.imagga.com/v2/tags?image_url=${encodeURIComponent(imageToTag.url)}`, {username: process.env.IMAGGA_API_KEY, password: process.env.IMAGGA_API_SECRET});
+                            const tagsResult = JSON.parse(imaggaRes.body).result.tags;
+                            newTags = tagsResult.slice(0, 5).map(tag => tag.tag.en)
+                        } catch (error) {
+                            console.log(error.response ? error.response.body: error);
+                            newTags = ["noTag"]
+                        }
                     } else {
                         newTags = ["noTag"]
                     }
@@ -276,6 +282,17 @@ module.exports.likePost = async(req,res) => {
                 userBioName: req.user.userBioName,
                 userImage: req.user.userImage,
             })
+            if(req.user.userId !== post.userId) {
+                await new Notification({
+                    userId: post.userId,
+                    notiType: "like",
+                    senderId: req.user.userId,
+                    senderUserName: req.user.userName,
+                    senderBioName: req.user.userBioName,
+                    senderImage: req.user.userImage,
+                    postId: post._id
+                }).save()
+            }
         }
         const updatePost = await Post.findByIdAndUpdate(id, { reactions }, {new: true});
         return res.json(updatePost);    

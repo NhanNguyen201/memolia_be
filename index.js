@@ -49,4 +49,23 @@ mongoose.connect(process.env.CONNECT_URL, {useNewUrlParser: true, useUnifiedTopo
     })
     .catch(err => console.log(err))
 
+// const db = mongoose.connection;
+// db.on('open', () => {
+//     app.listen(PORT, () => console.log(`Server runing at ${PORT}`))
+//     const postCollection = db.collection('posts');
+//     const postsChangeStream = postCollection.watch({
+//         '$match': {
+//             '$and': [
+//                 {'operationType' : 'update'},
+//                 {'updateDescription.updatedFields.reactions': { $exists: true }}
+//             ]
+//         }
+//     });
+//     postsChangeStream.on('change', (change)=> {
+//         console.log(change);
+//         const {_id: {_data}, updateDescription: { updatedFields }} = change;
+//         console.log("data", _data);
+//         console.log("fields ",updatedFields.reactions ? updatedFields.reactions : updatedFields)
+//     }) 
+// })
 mongoose.set('useFindAndModify', false);

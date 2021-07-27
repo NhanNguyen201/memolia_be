@@ -1,7 +1,39 @@
 const Post = require('../models/posts');
+const User = require('../models/users');
 const Story = require('../models/stories');
+const jwt = require('jsonwebtoken');
 
-const getMyPosts = async(req, res) => {
+module.exports.loginWithGoogle = async(req, res) => {
+    const authHeader = req.headers.authorization;
+    if(!authHeader){
+        return res.status(400).json({error: 'Must have header'})
+    } else {
+        if(!authHeader.startsWith('Bearer')){
+            return res.status(400).json({error: 'Header must start with "Bearer"'})
+        } else {
+            let userProfile = {}
+            const token = authHeader.split('Bearer ')[1];
+            const decodedUser = jwt.decode(token);
+            const user = await User.findOne({userName: decodedUser.email});
+            if(user) {
+                userProfile = user;
+            } else {
+                const newUser = new User({
+                    userName: decodedUser.email,
+                    userBioName: decodedUser.name,
+                    userImage: decodedUser.picture,
+                    userId: decodedUser.sub,
+                    followers: [],
+                    followings: []
+                })
+                userProfile = await newUser.save();
+            }
+            return res.json(userProfile);
+        }
+    }
+}
+
+module.exports.getMyPosts = async(req, res) => {
     const { userName } = req.user;
     try {
         const posts = await Post.find({userName}).sort({'createdAt': -1});
@@ -15,5 +47,3 @@ const getMyPosts = async(req, res) => {
         return res.status(500).json({error: "Something is wrong"})
     }
 }
-
-module.exports = { getMyPosts };

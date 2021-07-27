@@ -12,22 +12,10 @@ const chkAuth = async (req, res, next) => {
             const token = authHeader.split('Bearer ')[1];
             const decodedUser = jwt.decode(token);
             const user = await User.findOne({userName: decodedUser.email});
-            if(user) {
-                req.user = {
-                    userName: user.userName,
-                    userBioName: user.userBioName,
-                    userImage: user.userImage,
-                    userId: user.userId
-                };
+            if(!user) {
+                return res.status(404).json({error: "User not found"})
             } else {
-                const newUser = new User({
-                    userName: decodedUser.email,
-                    userBioName: decodedUser.name,
-                    userImage: decodedUser.picture,
-                    userId: decodedUser.sub
-                })
-                await newUser.save();
-                req.user = newUser;
+                req.user = user;
             }
             return next();
         }
