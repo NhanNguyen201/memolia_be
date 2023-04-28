@@ -13,7 +13,6 @@ const selfRoute = require('./routes/selfUser');
 const storyRoute = require('./routes/stories')
 
 const app = express();
-const http = require('http').Server(app)
 
 dotenv.config()
 
@@ -32,17 +31,6 @@ app.use(helmet());
 app.use(bodyParser.json({limit: "30mb", extended: true}));
 app.use(bodyParser.urlencoded({limit: "30mb", extended: true}));
 
-const io = require('socket.io')(http, { cors: { origin: true }});
-
-io.on('connection', function(socket) {
-    socket.on('login', ({userData}) => {
-        console.log(userData)
-    })    
-    socket.on('disconnect', function () {
-       console.log('A user disconnected'); 
-    });   
- });   
- 
 
 app.get('/', (req, res) => res.send("Hello"));
 
@@ -57,7 +45,7 @@ const PORT = process.env.PORT || 5000;
 mongoose.connect(process.env.CONNECT_URL, {useNewUrlParser: true, useUnifiedTopology: true})
     .then(() => {
         console.log('mongoDB connect');
-        return http.listen(PORT, () => console.log(`Server runing at ${PORT}`))
+        return app.listen(PORT, () => console.log(`Server runing at ${PORT}`))
     })
     .catch(err => console.log(err))
 
