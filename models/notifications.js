@@ -9,5 +9,13 @@ module.exports = model('Notification', new Schema({
     senderBioName: String,
     senderImage: String,
     postId: String,
-    body: String 
+    body: String,
+    isSeen: {
+        type: Boolean,
+        default: false
+    }, 
+    createdAt: {
+        type: String,
+        default: new Date().toISOString()
+    }   
 }));

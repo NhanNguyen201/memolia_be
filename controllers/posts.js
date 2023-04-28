@@ -290,7 +290,8 @@ module.exports.likePost = async(req,res) => {
                     senderUserName: req.user.userName,
                     senderBioName: req.user.userBioName,
                     senderImage: req.user.userImage,
-                    postId: post._id
+                    postId: post._id,
+                    createdAt: new Date().toISOString()
                 }).save()
             }
         }

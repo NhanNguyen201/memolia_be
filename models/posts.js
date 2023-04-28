@@ -74,8 +74,8 @@ const postSchema = new Schema({
     ],
     createdAt: {
         type: String,
-        default: new Date()
-    }
+        default: new Date().toISOString()
+    }   
 })
 
 module.exports = model('Post', postSchema);

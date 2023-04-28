@@ -8,8 +8,9 @@ const storyChema = new Schema({
     userBioName: String,
     moderatedAt: {
         type: String,
-        default: new Date()
+        default: new Date().toISOString()
     },
+   
     storyName: {
         type: String,
         default: ""
@@ -26,7 +27,7 @@ const storyChema = new Schema({
         },
         createdAt: {
             type: String,
-            default: new Date()
+            default: new Date().toISOString()
         },
         comments: [{
             body: String,

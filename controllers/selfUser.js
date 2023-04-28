@@ -1,6 +1,7 @@
 const Post = require('../models/posts');
 const User = require('../models/users');
 const Story = require('../models/stories');
+const Notification = require('../models/notifications');
 const jwt = require('jsonwebtoken');
 
 module.exports.loginWithGoogle = async(req, res) => {
@@ -47,3 +48,20 @@ module.exports.getMyPosts = async(req, res) => {
         return res.status(500).json({error: "Something is wrong"})
     }
 }
+
+module.exports.getNotifications = async (req, res) =>{
+    const { page } = req.query;
+    try {
+        const LIMIT = 7;
+        const startIndex = (Number(page) - 1) * LIMIT;
+        const total = await Notification.find({userId: req.user.userId}).countDocuments()
+        const notis = await Notification.find({userId: req.user.userId}).sort({'createdAt': -1}).limit(LIMIT).skip(startIndex);
+        return res.json({
+            notis,
+            currentPage: Number(page),
+            numberOfPages: Math.ceil(total / LIMIT)
+        })
+    } catch (error) {
+        return res.status(500).json({error: "Something is wrong"})
+    }
+} 
